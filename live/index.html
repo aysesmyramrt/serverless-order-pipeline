@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<title>Chaos Engineering — Live Dashboard</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#0a0e1a;color:#e2e8f0;min-height:100vh;padding:24px}
+
+/* header */
+header{display:flex;align-items:center;justify-content:space-between;margin-bottom:28px}
+header h1{font-size:20px;font-weight:700;color:#f8fafc}
+header h1 span{color:#38bdf8}
+.badge{background:#1e3a5f;color:#7dd3fc;font-size:11px;font-weight:600;padding:4px 12px;border-radius:999px;letter-spacing:.5px}
+.live-dot{display:inline-block;width:8px;height:8px;background:#4ade80;border-radius:50%;margin-right:6px;animation:pulse 1.2s infinite}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(.85)}}
+
+/* stats bar */
+.stats-bar{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:24px}
+.stat{background:#111827;border:1px solid #1f2937;border-radius:10px;padding:16px 20px}
+.stat .lbl{font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px}
+.stat .val{font-size:28px;font-weight:700;font-variant-numeric:tabular-nums}
+.green{color:#4ade80}.yellow{color:#facc15}.orange{color:#fb923c}.red{color:#f87171}.blue{color:#60a5fa}
+
+/* pipeline */
+.pipeline{display:flex;align-items:stretch;gap:0;margin-bottom:24px;background:#111827;border:1px solid #1f2937;border-radius:12px;padding:20px;overflow-x:auto}
+.fn-wrap{display:flex;align-items:center;gap:0;flex:1;min-width:0}
+.fn-card{flex:1;border-radius:10px;border:2px solid #1f2937;padding:16px;transition:all .4s ease;min-width:140px}
+.fn-card.healthy {border-color:#166534;background:#052e16}
+.fn-card.latency  {border-color:#854d0e;background:#422006}
+.fn-card.error    {border-color:#9a3412;background:#431407}
+.fn-card.down     {border-color:#7f1d1d;background:#450a0a}
+.fn-card .fn-name{font-size:13px;font-weight:600;margin-bottom:4px}
+.fn-card.healthy  .fn-name{color:#4ade80}
+.fn-card.latency  .fn-name{color:#facc15}
+.fn-card.error    .fn-name{color:#fb923c}
+.fn-card.down     .fn-name{color:#f87171}
+.fn-card .fn-status{font-size:11px;color:#6b7280;margin-bottom:8px}
+.fn-card .fn-badge{font-size:10px;font-weight:700;padding:2px 8px;border-radius:999px;display:inline-block}
+.fn-card.healthy  .fn-badge{background:#14532d;color:#4ade80}
+.fn-card.latency  .fn-badge{background:#422006;color:#facc15}
+.fn-card.error    .fn-badge{background:#431407;color:#fb923c}
+.fn-card.down     .fn-badge{background:#450a0a;color:#f87171}
+.arrow{font-size:20px;color:#374151;padding:0 10px;flex-shrink:0;align-self:center}
+
+/* bottom grid */
+.bottom{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+
+/* fault controls */
+.controls{background:#111827;border:1px solid #1f2937;border-radius:12px;padding:20px}
+.controls h2{font-size:13px;font-weight:600;color:#9ca3af;margin-bottom:16px;text-transform:uppercase;letter-spacing:.5px}
+.ctrl-group{margin-bottom:14px}
+.ctrl-group label{display:block;font-size:12px;color:#6b7280;margin-bottom:6px}
+.btn-row{display:flex;gap:8px;flex-wrap:wrap}
+button{border:none;border-radius:7px;padding:7px 14px;font-size:12px;font-weight:600;cursor:pointer;transition:all .15s}
+.btn-latency {background:#422006;color:#facc15}
+.btn-latency:hover{background:#5c2d0b}
+.btn-error   {background:#431407;color:#fb923c}
+.btn-error:hover{background:#5e1c09}
+.btn-down    {background:#450a0a;color:#f87171}
+.btn-down:hover{background:#621212}
+.btn-reset   {background:#1f2937;color:#9ca3af}
+.btn-reset:hover{background:#374151}
+.btn-reset-all{background:#1e3a5f;color:#7dd3fc;margin-top:12px;width:100%;padding:9px}
+.btn-reset-all:hover{background:#1e40af}
+
+/* log */
+.log-card{background:#111827;border:1px solid #1f2937;border-radius:12px;padding:20px;overflow:hidden}
+.log-card h2{font-size:13px;font-weight:600;color:#9ca3af;margin-bottom:14px;text-transform:uppercase;letter-spacing:.5px}
+.log-list{display:flex;flex-direction:column;gap:5px;max-height:340px;overflow-y:auto}
+.log-entry{display:flex;align-items:center;gap:10px;padding:6px 10px;border-radius:6px;font-size:12px;font-variant-numeric:tabular-nums;animation:slideIn .3s ease}
+@keyframes slideIn{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
+.log-entry.ok  {background:#052e16}
+.log-entry.err {background:#450a0a}
+.log-entry .log-id  {color:#6b7280;min-width:110px}
+.log-entry .log-code{min-width:36px;font-weight:700}
+.log-entry.ok  .log-code{color:#4ade80}
+.log-entry.err .log-code{color:#f87171}
+.log-entry .log-ms  {min-width:70px;text-align:right}
+.log-entry.ok  .log-ms{color:#4ade80}
+.log-entry.err .log-ms{color:#f87171}
+.log-entry .log-ts  {color:#4b5563;margin-left:auto}
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>Chaos Engineering Framework &nbsp;<span>Live Dashboard</span></h1>
+    <div style="font-size:12px;color:#4b5563;margin-top:4px">Order Processing Pipeline · OpenFaaS on Kubernetes</div>
+  </div>
+  <div style="display:flex;align-items:center;gap:12px">
+    <div class="badge">Project 17 · 2025-2026</div>
+    <div style="font-size:12px;color:#4ade80"><span class="live-dot"></span>LIVE</div>
+  </div>
+</header>
+
+<!-- Stats -->
+<div class="stats-bar">
+  <div class="stat"><div class="lbl">Total Requests</div><div class="val blue" id="s-total">0</div></div>
+  <div class="stat"><div class="lbl">Error Rate</div><div class="val" id="s-err">0%</div></div>
+  <div class="stat"><div class="lbl">Mean Latency</div><div class="val green" id="s-mean">— ms</div></div>
+  <div class="stat"><div class="lbl">p50 Latency</div><div class="val green" id="s-p50">— ms</div></div>
+</div>
+
+<!-- Pipeline -->
+<div class="pipeline">
+  <div class="fn-wrap">
+    <div class="fn-card healthy" id="fn-order-ingestion">
+      <div class="fn-name">order-ingestion</div>
+      <div class="fn-status">Validates &amp; enqueues order</div>
+      <div class="fn-badge">HEALTHY</div>
+    </div>
+  </div>
+  <div class="arrow">→</div>
+  <div class="fn-wrap">
+    <div class="fn-card healthy" id="fn-payment-processing">
+      <div class="fn-name">payment-processing</div>
+      <div class="fn-status">Authorises transaction</div>
+      <div class="fn-badge">HEALTHY</div>
+    </div>
+  </div>
+  <div class="arrow">→</div>
+  <div class="fn-wrap">
+    <div class="fn-card healthy" id="fn-inventory-management">
+      <div class="fn-name">inventory-management</div>
+      <div class="fn-status">Reserves stock</div>
+      <div class="fn-badge">HEALTHY</div>
+    </div>
+  </div>
+  <div class="arrow">→</div>
+  <div class="fn-wrap">
+    <div class="fn-card healthy" id="fn-shipping-dispatch">
+      <div class="fn-name">shipping-dispatch</div>
+      <div class="fn-status">Generates tracking ID</div>
+      <div class="fn-badge">HEALTHY</div>
+    </div>
+  </div>
+</div>
+
+<!-- Bottom -->
+<div class="bottom">
+
+  <!-- Fault Controls -->
+  <div class="controls">
+    <h2>⚡ Fault Injection Controls</h2>
+
+    <div class="ctrl-group">
+      <label>payment-processing</label>
+      <div class="btn-row">
+        <button class="btn-latency" onclick="inject('payment-processing','latency',2000)">+ 2s Latency</button>
+        <button class="btn-error"   onclick="inject('payment-processing','error_rate',0.4)">40% Error Rate</button>
+        <button class="btn-down"    onclick="inject('payment-processing','downstream',1)">⬇ Take Down</button>
+        <button class="btn-reset"   onclick="reset('payment-processing')">Reset</button>
+      </div>
+    </div>
+
+    <div class="ctrl-group">
+      <label>inventory-management</label>
+      <div class="btn-row">
+        <button class="btn-latency" onclick="inject('inventory-management','latency',2000)">+ 2s Latency</button>
+        <button class="btn-error"   onclick="inject('inventory-management','error_rate',0.4)">40% Error Rate</button>
+        <button class="btn-down"    onclick="inject('inventory-management','downstream',1)">⬇ Take Down</button>
+        <button class="btn-reset"   onclick="reset('inventory-management')">Reset</button>
+      </div>
+    </div>
+
+    <div class="ctrl-group">
+      <label>order-ingestion</label>
+      <div class="btn-row">
+        <button class="btn-latency" onclick="inject('order-ingestion','latency',2000)">+ 2s Latency</button>
+        <button class="btn-error"   onclick="inject('order-ingestion','error_rate',0.4)">40% Error Rate</button>
+        <button class="btn-reset"   onclick="reset('order-ingestion')">Reset</button>
+      </div>
+    </div>
+
+    <div class="ctrl-group">
+      <label>shipping-dispatch</label>
+      <div class="btn-row">
+        <button class="btn-latency" onclick="inject('shipping-dispatch','latency',2000)">+ 2s Latency</button>
+        <button class="btn-error"   onclick="inject('shipping-dispatch','error_rate',0.4)">40% Error Rate</button>
+        <button class="btn-reset"   onclick="reset('shipping-dispatch')">Reset</button>
+      </div>
+    </div>
+
+    <button class="btn-reset-all" onclick="resetAll()">🔄 Reset All — Restore Baseline</button>
+  </div>
+
+  <!-- Live Log -->
+  <div class="log-card">
+    <h2>📋 Live Request Log</h2>
+    <div class="log-list" id="log-list"></div>
+  </div>
+
+</div>
+
+<script>
+const FN_LABELS = {
+  "order-ingestion":     "order-ingestion",
+  "payment-processing":  "payment-processing",
+  "inventory-management":"inventory-management",
+  "shipping-dispatch":   "shipping-dispatch",
+};
+
+async function inject(fn, kind, value) {
+  await fetch("/api/fault", {
+    method: "POST",
+    headers: {"Content-Type":"application/json"},
+    body: JSON.stringify({function: fn, kind, value})
+  });
+}
+
+async function reset(fn) {
+  await fetch("/api/reset", {
+    method: "POST",
+    headers: {"Content-Type":"application/json"},
+    body: JSON.stringify({function: fn})
+  });
+}
+
+async function resetAll() {
+  await fetch("/api/reset", {
+    method: "POST",
+    headers: {"Content-Type":"application/json"},
+    body: JSON.stringify({})
+  });
+}
+
+function cardClass(fault) {
+  if (fault.downstream)        return "down";
+  if (fault.error_rate > 0)    return "error";
+  if (fault.latency > 0)       return "latency";
+  return "healthy";
+}
+
+function badgeText(cls) {
+  return {healthy:"HEALTHY", latency:"LATENCY", error:"ERROR RATE", down:"OFFLINE"}[cls];
+}
+
+function latencyColor(ms) {
+  if (ms < 100)  return "green";
+  if (ms < 500)  return "yellow";
+  if (ms < 2000) return "orange";
+  return "red";
+}
+
+function errColor(pct) {
+  if (pct === 0)   return "green";
+  if (pct < 20)    return "yellow";
+  if (pct < 60)    return "orange";
+  return "red";
+}
+
+async function poll() {
+  try {
+    const r = await fetch("/api/status");
+    const d = await r.json();
+
+    // Stats
+    document.getElementById("s-total").textContent = d.stats.total;
+    const errEl = document.getElementById("s-err");
+    errEl.textContent = d.stats.err_pct + "%";
+    errEl.className = "val " + errColor(d.stats.err_pct);
+
+    const meanEl = document.getElementById("s-mean");
+    meanEl.textContent = d.stats.mean + " ms";
+    meanEl.className = "val " + latencyColor(d.stats.mean);
+
+    const p50El = document.getElementById("s-p50");
+    p50El.textContent = d.stats.p50 + " ms";
+    p50El.className = "val " + latencyColor(d.stats.p50);
+
+    // Function cards
+    for (const [fn, fault] of Object.entries(d.faults)) {
+      const card = document.getElementById("fn-" + fn);
+      if (!card) continue;
+      const cls = cardClass(fault);
+      card.className = "fn-card " + cls;
+      card.querySelector(".fn-badge").textContent = badgeText(cls);
+
+      let extra = "";
+      if (fault.latency > 0)       extra = `+${fault.latency}ms delay`;
+      else if (fault.error_rate > 0) extra = `${(fault.error_rate*100).toFixed(0)}% errors`;
+      else if (fault.downstream)    extra = "unreachable";
+      else                           extra = "Healthy";
+
+      card.querySelector(".fn-status").textContent = extra;
+    }
+
+    // Log
+    const list = document.getElementById("log-list");
+    list.innerHTML = d.log.map(e => `
+      <div class="log-entry ${e.ok ? 'ok' : 'err'}">
+        <span class="log-id">${e.id}</span>
+        <span class="log-code">${e.code || 'ERR'}</span>
+        <span class="log-ms">${e.ms} ms</span>
+        <span class="log-ts">${e.ts}</span>
+      </div>
+    `).join("");
+
+  } catch(err) { /* ignore */ }
+}
+
+setInterval(poll, 1000);
+poll();
+</script>
+</body>
+</html>

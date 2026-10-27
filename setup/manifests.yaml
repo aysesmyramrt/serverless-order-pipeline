@@ -1,0 +1,190 @@
+---
+# order-ingestion
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: order-ingestion
+  namespace: openfaas-fn
+  labels:
+    faas_function: order-ingestion
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      faas_function: order-ingestion
+  template:
+    metadata:
+      labels:
+        faas_function: order-ingestion
+    spec:
+      containers:
+      - name: order-ingestion
+        image: localhost:5001/order-ingestion:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8080
+        env:
+        - name: CHAOS_LATENCY_MS
+          value: "0"
+        - name: CHAOS_ERROR_RATE
+          value: "0.0"
+        - name: CHAOS_DOWNSTREAM_FAIL
+          value: "false"
+        - name: OPENFAAS_URL
+          value: "http://gateway.openfaas.svc.cluster.local:8080"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: order-ingestion
+  namespace: openfaas-fn
+  labels:
+    faas_function: order-ingestion
+spec:
+  selector:
+    faas_function: order-ingestion
+  ports:
+  - port: 8080
+    targetPort: 8080
+---
+# payment-processing
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: payment-processing
+  namespace: openfaas-fn
+  labels:
+    faas_function: payment-processing
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      faas_function: payment-processing
+  template:
+    metadata:
+      labels:
+        faas_function: payment-processing
+    spec:
+      containers:
+      - name: payment-processing
+        image: localhost:5001/payment-processing:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8080
+        env:
+        - name: CHAOS_LATENCY_MS
+          value: "0"
+        - name: CHAOS_ERROR_RATE
+          value: "0.0"
+        - name: CHAOS_DOWNSTREAM_FAIL
+          value: "false"
+        - name: OPENFAAS_URL
+          value: "http://gateway.openfaas.svc.cluster.local:8080"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: payment-processing
+  namespace: openfaas-fn
+  labels:
+    faas_function: payment-processing
+spec:
+  selector:
+    faas_function: payment-processing
+  ports:
+  - port: 8080
+    targetPort: 8080
+---
+# inventory-management
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: inventory-management
+  namespace: openfaas-fn
+  labels:
+    faas_function: inventory-management
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      faas_function: inventory-management
+  template:
+    metadata:
+      labels:
+        faas_function: inventory-management
+    spec:
+      containers:
+      - name: inventory-management
+        image: localhost:5001/inventory-management:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8080
+        env:
+        - name: CHAOS_LATENCY_MS
+          value: "0"
+        - name: CHAOS_ERROR_RATE
+          value: "0.0"
+        - name: CHAOS_DOWNSTREAM_FAIL
+          value: "false"
+        - name: OPENFAAS_URL
+          value: "http://gateway.openfaas.svc.cluster.local:8080"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: inventory-management
+  namespace: openfaas-fn
+  labels:
+    faas_function: inventory-management
+spec:
+  selector:
+    faas_function: inventory-management
+  ports:
+  - port: 8080
+    targetPort: 8080
+---
+# shipping-dispatch
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: shipping-dispatch
+  namespace: openfaas-fn
+  labels:
+    faas_function: shipping-dispatch
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      faas_function: shipping-dispatch
+  template:
+    metadata:
+      labels:
+        faas_function: shipping-dispatch
+    spec:
+      containers:
+      - name: shipping-dispatch
+        image: localhost:5001/shipping-dispatch:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8080
+        env:
+        - name: CHAOS_LATENCY_MS
+          value: "0"
+        - name: CHAOS_ERROR_RATE
+          value: "0.0"
+        - name: CHAOS_DOWNSTREAM_FAIL
+          value: "false"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: shipping-dispatch
+  namespace: openfaas-fn
+  labels:
+    faas_function: shipping-dispatch
+spec:
+  selector:
+    faas_function: shipping-dispatch
+  ports:
+  - port: 8080
+    targetPort: 8080

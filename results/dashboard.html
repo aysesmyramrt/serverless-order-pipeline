@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Chaos Engineering Results — Order Processing Pipeline</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #0f1117;
+      color: #e2e8f0;
+      min-height: 100vh;
+      padding: 32px 24px;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 40px;
+    }
+    header .badge {
+      display: inline-block;
+      background: #1e40af;
+      color: #93c5fd;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      padding: 4px 12px;
+      border-radius: 999px;
+      margin-bottom: 14px;
+    }
+    header h1 {
+      font-size: 28px;
+      font-weight: 700;
+      color: #f8fafc;
+      margin-bottom: 6px;
+    }
+    header p {
+      font-size: 14px;
+      color: #94a3b8;
+    }
+
+    /* KPI cards */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+      margin-bottom: 32px;
+    }
+    .kpi {
+      background: #1e2130;
+      border: 1px solid #2d3448;
+      border-radius: 12px;
+      padding: 20px;
+    }
+    .kpi .label { font-size: 12px; color: #64748b; text-transform: uppercase; letter-spacing: .6px; margin-bottom: 8px; }
+    .kpi .value { font-size: 30px; font-weight: 700; }
+    .kpi .sub   { font-size: 12px; color: #64748b; margin-top: 4px; }
+    .green  { color: #4ade80; }
+    .yellow { color: #facc15; }
+    .orange { color: #fb923c; }
+    .red    { color: #f87171; }
+
+    /* Charts */
+    .charts-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      margin-bottom: 28px;
+    }
+    .chart-card {
+      background: #1e2130;
+      border: 1px solid #2d3448;
+      border-radius: 12px;
+      padding: 24px;
+    }
+    .chart-card h2 {
+      font-size: 14px;
+      font-weight: 600;
+      color: #cbd5e1;
+      margin-bottom: 20px;
+      letter-spacing: .3px;
+    }
+    .chart-card canvas { width: 100% !important; }
+
+    /* Table */
+    .table-card {
+      background: #1e2130;
+      border: 1px solid #2d3448;
+      border-radius: 12px;
+      padding: 24px;
+      margin-bottom: 28px;
+    }
+    .table-card h2 {
+      font-size: 14px;
+      font-weight: 600;
+      color: #cbd5e1;
+      margin-bottom: 18px;
+    }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    thead tr { border-bottom: 1px solid #2d3448; }
+    thead th { text-align: left; padding: 8px 12px; color: #64748b; font-weight: 500; font-size: 12px; text-transform: uppercase; letter-spacing: .5px; }
+    tbody tr { border-bottom: 1px solid #1a1f2e; transition: background .15s; }
+    tbody tr:hover { background: #252a3a; }
+    tbody td { padding: 12px 12px; vertical-align: middle; }
+    .pill {
+      display: inline-block;
+      padding: 2px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .pill-green  { background: #14532d; color: #4ade80; }
+    .pill-yellow { background: #422006; color: #facc15; }
+    .pill-orange { background: #431407; color: #fb923c; }
+    .pill-red    { background: #450a0a; color: #f87171; }
+
+    /* Pipeline */
+    .pipeline-card {
+      background: #1e2130;
+      border: 1px solid #2d3448;
+      border-radius: 12px;
+      padding: 24px;
+      margin-bottom: 28px;
+    }
+    .pipeline-card h2 { font-size: 14px; font-weight: 600; color: #cbd5e1; margin-bottom: 20px; }
+    .pipeline {
+      display: flex;
+      align-items: center;
+      gap: 0;
+      flex-wrap: wrap;
+    }
+    .fn-box {
+      background: #0f172a;
+      border: 1px solid #334155;
+      border-radius: 10px;
+      padding: 14px 20px;
+      text-align: center;
+      min-width: 160px;
+    }
+    .fn-box .fn-name { font-size: 13px; font-weight: 600; color: #38bdf8; }
+    .fn-box .fn-desc { font-size: 11px; color: #64748b; margin-top: 4px; }
+    .arrow {
+      font-size: 22px;
+      color: #334155;
+      padding: 0 10px;
+      flex-shrink: 0;
+    }
+
+    footer {
+      text-align: center;
+      font-size: 12px;
+      color: #334155;
+      margin-top: 12px;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="badge">Project 17 · Cloud Computing Module 2025–2026</div>
+  <h1>Chaos Engineering Framework for Serverless Applications</h1>
+  <p>OpenFaaS on Kubernetes · Order Processing Pipeline · Experiment Results</p>
+</header>
+
+<!-- KPI Cards -->
+<div class="kpi-grid">
+  <div class="kpi">
+    <div class="label">Baseline p50 Latency</div>
+    <div class="value green">33.7 ms</div>
+    <div class="sub">No faults injected</div>
+  </div>
+  <div class="kpi">
+    <div class="label">Latency Under Fault</div>
+    <div class="value yellow">2042 ms</div>
+    <div class="sub">+2000 ms injection on payment</div>
+  </div>
+  <div class="kpi">
+    <div class="label">Peak Error Rate</div>
+    <div class="value orange">46.7 %</div>
+    <div class="sub">40% fault on inventory</div>
+  </div>
+  <div class="kpi">
+    <div class="label">Downstream Failure</div>
+    <div class="value red">100 %</div>
+    <div class="sub">payment-processing outage</div>
+  </div>
+</div>
+
+<!-- Charts -->
+<div class="charts-grid">
+
+  <div class="chart-card">
+    <h2>End-to-End Latency Distribution (p50 / p95 / p99)</h2>
+    <canvas id="latencyChart" height="220"></canvas>
+  </div>
+
+  <div class="chart-card">
+    <h2>Error Propagation Rate per Experiment</h2>
+    <canvas id="errorChart" height="220"></canvas>
+  </div>
+
+</div>
+
+<!-- Full-width latency comparison bar -->
+<div class="chart-card" style="margin-bottom:28px;">
+  <h2>Mean Response Time Comparison (ms)</h2>
+  <canvas id="meanChart" height="100"></canvas>
+</div>
+
+<!-- Results Table -->
+<div class="table-card">
+  <h2>Experiment Summary Table</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Experiment</th>
+        <th>Requests</th>
+        <th>Errors</th>
+        <th>Error %</th>
+        <th>Mean</th>
+        <th>p50</th>
+        <th>p95</th>
+        <th>p99</th>
+        <th>Status</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>1</td>
+        <td>Baseline (no faults)</td>
+        <td>30</td><td>0</td>
+        <td><span class="pill pill-green">0.0 %</span></td>
+        <td>33.4 ms</td><td>33.7 ms</td><td>39.6 ms</td><td>41.2 ms</td>
+        <td><span class="pill pill-green">PASSED</span></td>
+      </tr>
+      <tr>
+        <td>2</td>
+        <td>Latency Injection: payment-processing +2000 ms</td>
+        <td>30</td><td>0</td>
+        <td><span class="pill pill-green">0.0 %</span></td>
+        <td>2041.3 ms</td><td>2042.4 ms</td><td>2047.8 ms</td><td>2048.3 ms</td>
+        <td><span class="pill pill-yellow">DEGRADED</span></td>
+      </tr>
+      <tr>
+        <td>3</td>
+        <td>Error Rate: inventory-management 40 % failure</td>
+        <td>30</td><td>14</td>
+        <td><span class="pill pill-orange">46.7 %</span></td>
+        <td>29.1 ms</td><td>28.5 ms</td><td>35.8 ms</td><td>39.6 ms</td>
+        <td><span class="pill pill-orange">PARTIAL FAILURE</span></td>
+      </tr>
+      <tr>
+        <td>4</td>
+        <td>Downstream Failure: payment-processing unavailable</td>
+        <td>30</td><td>30</td>
+        <td><span class="pill pill-red">100.0 %</span></td>
+        <td>24.1 ms</td><td>24.4 ms</td><td>27.1 ms</td><td>27.6 ms</td>
+        <td><span class="pill pill-red">FAILED</span></td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- Pipeline -->
+<div class="pipeline-card">
+  <h2>Function Chain — Order Processing Pipeline</h2>
+  <div class="pipeline">
+    <div class="fn-box">
+      <div class="fn-name">order-ingestion</div>
+      <div class="fn-desc">Validates &amp; enqueues order</div>
+    </div>
+    <div class="arrow">→</div>
+    <div class="fn-box">
+      <div class="fn-name">payment-processing</div>
+      <div class="fn-desc">Authorises transaction</div>
+    </div>
+    <div class="arrow">→</div>
+    <div class="fn-box">
+      <div class="fn-name">inventory-management</div>
+      <div class="fn-desc">Reserves stock</div>
+    </div>
+    <div class="arrow">→</div>
+    <div class="fn-box">
+      <div class="fn-name">shipping-dispatch</div>
+      <div class="fn-desc">Generates tracking ID</div>
+    </div>
+  </div>
+</div>
+
+<footer>
+  Project Team: Fatma Zehra Bestil &amp; Ayşe Sümeyra Mert &nbsp;·&nbsp;
+  github.com/zellafza/cloud-project &nbsp;·&nbsp;
+  Generated: 5 June 2026
+</footer>
+
+<script>
+const LABELS = [
+  "Baseline",
+  "Latency +2000ms",
+  "Error Rate 40%",
+  "Downstream Failure"
+];
+
+/* Latency grouped bar */
+new Chart(document.getElementById("latencyChart"), {
+  type: "bar",
+  data: {
+    labels: LABELS,
+    datasets: [
+      {
+        label: "p50",
+        data: [33.7, 2042.4, 28.5, 24.4],
+        backgroundColor: "#3b82f6",
+        borderRadius: 4,
+      },
+      {
+        label: "p95",
+        data: [39.6, 2047.8, 35.8, 27.1],
+        backgroundColor: "#8b5cf6",
+        borderRadius: 4,
+      },
+      {
+        label: "p99",
+        data: [41.2, 2048.3, 39.6, 27.6],
+        backgroundColor: "#ec4899",
+        borderRadius: 4,
+      }
+    ]
+  },
+  options: {
+    responsive: true,
+    plugins: { legend: { labels: { color: "#94a3b8", boxRadius: 4 } } },
+    scales: {
+      x: { ticks: { color: "#64748b" }, grid: { color: "#1e293b" } },
+      y: {
+        ticks: { color: "#64748b", callback: v => v >= 1000 ? (v/1000).toFixed(1)+"s" : v+"ms" },
+        grid: { color: "#1e293b" }
+      }
+    }
+  }
+});
+
+/* Error rate line */
+new Chart(document.getElementById("errorChart"), {
+  type: "line",
+  data: {
+    labels: LABELS,
+    datasets: [{
+      label: "Error %",
+      data: [0.0, 0.0, 46.7, 100.0],
+      borderColor: "#f87171",
+      backgroundColor: "rgba(248,113,113,0.15)",
+      borderWidth: 2,
+      pointBackgroundColor: "#f87171",
+      pointRadius: 5,
+      fill: true,
+      tension: 0.3
+    }]
+  },
+  options: {
+    responsive: true,
+    plugins: { legend: { labels: { color: "#94a3b8" } } },
+    scales: {
+      x: { ticks: { color: "#64748b" }, grid: { color: "#1e293b" } },
+      y: {
+        min: 0, max: 100,
+        ticks: { color: "#64748b", callback: v => v + "%" },
+        grid: { color: "#1e293b" }
+      }
+    }
+  }
+});
+
+/* Mean horizontal bar */
+new Chart(document.getElementById("meanChart"), {
+  type: "bar",
+  data: {
+    labels: LABELS,
+    datasets: [{
+      label: "Mean latency (ms)",
+      data: [33.4, 2041.3, 29.1, 24.1],
+      backgroundColor: ["#4ade80","#facc15","#fb923c","#f87171"],
+      borderRadius: 6,
+    }]
+  },
+  options: {
+    indexAxis: "y",
+    responsive: true,
+    plugins: { legend: { display: false } },
+    scales: {
+      x: {
+        ticks: { color: "#64748b", callback: v => v >= 1000 ? (v/1000).toFixed(1)+"s" : v+"ms" },
+        grid: { color: "#1e293b" }
+      },
+      y: { ticks: { color: "#94a3b8" }, grid: { color: "#1e293b" } }
+    }
+  }
+});
+</script>
+</body>
+</html>

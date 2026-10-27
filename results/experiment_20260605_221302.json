@@ -1,0 +1,42 @@
+[
+  {
+    "experiment": "Baseline (no faults)",
+    "n": 30,
+    "errors": 0,
+    "error_pct": 0.0,
+    "mean_ms": 33.4,
+    "p50_ms": 33.7,
+    "p95_ms": 39.6,
+    "p99_ms": 41.2
+  },
+  {
+    "experiment": "Latency Injection: payment-processing +2000 ms",
+    "n": 30,
+    "errors": 0,
+    "error_pct": 0.0,
+    "mean_ms": 2041.3,
+    "p50_ms": 2042.4,
+    "p95_ms": 2047.8,
+    "p99_ms": 2048.3
+  },
+  {
+    "experiment": "Error Rate: inventory-management 40 % failure",
+    "n": 30,
+    "errors": 14,
+    "error_pct": 46.7,
+    "mean_ms": 29.1,
+    "p50_ms": 28.5,
+    "p95_ms": 35.8,
+    "p99_ms": 39.6
+  },
+  {
+    "experiment": "Downstream Failure: payment-processing unavailable",
+    "n": 30,
+    "errors": 30,
+    "error_pct": 100.0,
+    "mean_ms": 24.1,
+    "p50_ms": 24.4,
+    "p95_ms": 27.1,
+    "p99_ms": 27.6
+  }
+]

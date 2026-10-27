@@ -1,0 +1,10 @@
+* text=auto
+*.pdf binary
+*.docx binary
+*.pptx binary
+*.pt binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.webp binary
+*.jar binary
